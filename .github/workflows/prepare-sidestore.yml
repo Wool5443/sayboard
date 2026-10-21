@@ -1,0 +1,64 @@
+name: Prepare SideStore transfer
+
+on:
+  workflow_call:
+    inputs:
+      source_run_id:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Successful Personal iPhone build run ID to repackage
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  prepare:
+    runs-on: macos-26
+    timeout-minutes: 15
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+      - name: Download and check the validated source IPA
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]]
+          mkdir -p build/sidestore
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID" > build/source-run.json
+          source_sha=$(python3 -c '
+          import json
+          run = json.load(open("build/source-run.json"))
+          assert run["conclusion"] == "success" and run["name"] == "Personal iPhone build", run
+          print(run["head_sha"])')
+          # Reuse only when the application source still matches the tested build.
+          git diff --exit-code "$source_sha" HEAD -- Sayboard SayboardKeyboard Shared Packages project.yml
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name "Sayboard-personal-$source_sha" --dir build/source-ipa
+          (cd build/source-ipa && shasum -a 256 -c Sayboard.ipa.sha256)
+          test "$(cat build/source-ipa/source-revision.txt)" = "$source_sha"
+          cp build/source-ipa/source-revision.txt build/sidestore/source-revision.txt
+          git rev-parse HEAD > build/sidestore/prepared-revision.txt
+      - name: Prepare and verify the SideStore IPA
+        run: |
+          set -euo pipefail
+          python3 -B -m unittest discover -s scripts/tests
+          bash scripts/prepare-sidestore.sh \
+            build/source-ipa/Sayboard.ipa build/sidestore/Sayboard-SideStore.ipa \
+            2>&1 | tee build/sidestore/prepare.log
+      - name: Upload SideStore IPA and evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Sayboard-SideStore-${{ github.sha }}
+          path: build/sidestore/
+          retention-days: 14
