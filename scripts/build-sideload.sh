@@ -27,8 +27,8 @@ xcodebuild "${common[@]}" \
 
 app=build/DerivedData/Build/Products/Release-iphoneos/Sayboard.app
 test -d "$app/PlugIns/SayboardKeyboard.appex"
-lipo -verify_arch arm64 "$app/Sayboard"
-lipo -verify_arch arm64 "$app/PlugIns/SayboardKeyboard.appex/SayboardKeyboard"
+lipo "$app/Sayboard" -verify_arch arm64
+lipo "$app/PlugIns/SayboardKeyboard.appex/SayboardKeyboard" -verify_arch arm64
 # Capture the effective conditions, rather than assuming the command-line flag won.
 xcodebuild "${common[@]}" \
   -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
