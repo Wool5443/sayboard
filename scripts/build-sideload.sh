@@ -55,4 +55,5 @@ python3 scripts/verify-sideload-ipa.py build/sideload/Sayboard.ipa
 git rev-parse HEAD > build/sideload/source-revision.txt
 xcodebuild -version > build/sideload/xcode-version.txt
 (cd build/sideload && shasum -a 256 Sayboard.ipa > Sayboard.ipa.sha256)
+bash scripts/prepare-sidestore.sh build/sideload/Sayboard.ipa build/sideload/Sayboard-SideStore.ipa
 echo 'IPA ready: build/sideload/Sayboard.ipa (unsigned; install using iloader)'

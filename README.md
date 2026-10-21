@@ -92,6 +92,42 @@ The `SAYBOARD_SIDELOAD` compilation condition uses iloader's shared group,
 Keyboard detection reads the embedded extension's actual bundle identifier. Use this IPA
 with iloader; other signing tools may use a different App Group naming scheme.
 
+#### Transfer to SideStore for refreshes on the iPhone
+
+Use **Sayboard-SideStore.ipa**, not the unsigned `Sayboard.ipa`. The SideStore IPA
+declares `group.app.sayboard` in both targets' ad-hoc signatures. SideStore appends
+your team ID, producing the same `group.app.sayboard.<team>` shared container as
+iloader. Its final app ID must remain `app.sayboard.<team>` and its keyboard ID
+`app.sayboard.<team>.keyboard`. Keep the same Apple account and team, keep SideStore's
+team-ID suffix enabled, and do not uninstall Sayboard.
+
+The normal build workflow produces both IPA variants. To prepare the SideStore
+variant from an already-tested build without recompiling, run **Actions → Prepare
+SideStore transfer** and enter the successful **Personal iPhone build** run ID.
+This checks the source matches the tested app, verifies its checksum, adds App Group
+metadata, verifies the signatures and unchanged app/keyboard instruction sections,
+and uploads `Sayboard-SideStore-<revision>`. No Apple credentials are used in CI.
+
+After setting up SideStore, its pairing file, and LocalDevVPN:
+
+1. Copy `Sayboard-SideStore.ipa` to Files on the iPhone using a private transfer
+   such as USB or your own file service. Do not use iloader to install this variant;
+   import it from SideStore so SideStore tracks and refreshes it.
+2. Connect LocalDevVPN, open **SideStore → My Apps → +**, and import the IPA.
+   Retain **SayboardKeyboard** and keep the existing bundle IDs and team-ID suffix.
+3. Confirm Sayboard replaces the existing app. Check the downloaded model, settings,
+   history, and dictation in Notes. Refresh Sayboard once in SideStore and repeat
+   the checks before relying on phone-only renewal.
+4. Every 5–6 days, connect LocalDevVPN and use **Refresh All**, including SideStore
+   itself. A working pairing file and local device connection are required.
+
+If SideStore proposes a different app identity or the shared data disappears, stop
+and retain both installs. The original `Sayboard.ipa` remains the rollback artifact:
+reinstall it through iloader with the original account without deleting Sayboard.
+SideStore authentication and pairing compatibility depend on its version; use the
+[official releases](https://github.com/SideStore/SideStore/releases) and check their
+current warnings rather than assuming an older Stable release still signs in.
+
 For the same build on a Mac: install XcodeGen, select Xcode, and run
 `bash scripts/build-sideload.sh`. The unsigned IPA is written to `build/sideload/Sayboard.ipa`.
 
