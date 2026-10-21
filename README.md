@@ -50,6 +50,53 @@ Sayboard supports 90+ languages with automatic language detection:
 
 ## Building
 
+### Personal iPhone build from Linux
+
+You can build on GitHub's macOS runner and sign locally on Fedora without owning a Mac.
+This route targets **iloader 2.3.10**, including its App Group and bundle ID rewriting.
+It builds the unlimited `Release` configuration, not the App Store purchase configuration.
+
+1. Fork this repository, open **Actions → Personal iPhone build → Run workflow**,
+   and wait for the build and tests to pass. The workflow uses Xcode 26.2 on `macos-26`;
+   building with an older SDK does not require downgrading your phone's iOS.
+2. Download and extract the `Sayboard-personal-<revision>` artifact. Check the IPA
+   with `sha256sum -c Sayboard.ipa.sha256` from the extracted directory.
+   Build logs, effective build settings, source revision, and test results are included.
+3. Download the x86_64 Fedora RPM from the
+   [official iloader releases](https://github.com/nab138/iloader/releases/tag/v2.3.10),
+   then install it with `sudo dnf install ./iloader-linux-x86_64.rpm`.
+   Install `usbmuxd` too if it is missing.
+4. Connect your unlocked iPhone over USB and accept **Trust This Computer**.
+   Enable **Settings → Privacy & Security → Developer Mode**, restarting if requested.
+5. Open iloader, sign in with your Apple account, choose **Import IPA**, and select
+   `Sayboard.ipa`. Keep the **SayboardKeyboard** extension when installing.
+   If an increased-memory option is available, enable it only if provisioning supports it;
+   otherwise start with a small speech model under the normal memory budget.
+6. If requested, trust your developer identity in **Settings → General → VPN & Device Management**.
+   Launch Sayboard, allow microphone access, and follow onboarding to enable the
+   keyboard and **Allow Full Access**. Download a small speech model before testing offline.
+
+Apple credentials and certificates stay in your local signing tool; the workflow needs
+no Apple secrets. A free account's provisioning profiles expire after seven days.
+Use iloader to re-sign and reinstall **before expiry**, keeping the same Apple account
+and app identifiers. Do not uninstall the app to refresh it, because that can delete data.
+
+Before relying on the install, verify dictation into Notes, shared settings, offline use,
+launch without a debugger, and a re-sign/reinstall that preserves your models and history.
+Installation and refresh on a particular iOS release, including iOS 27.2, require a real-device
+test. If App Group provisioning fails, the keyboard cannot share transcriptions: keep the
+exact iloader error and resolve signing rather than removing the keyboard or shared group.
+
+The `SAYBOARD_SIDELOAD` compilation condition uses iloader's shared group,
+`group.<signed app bundle ID>`, in both targets. Other builds retain the original group.
+Keyboard detection reads the embedded extension's actual bundle identifier. Use this IPA
+with iloader; other signing tools may use a different App Group naming scheme.
+
+For the same build on a Mac: install XcodeGen, select Xcode, and run
+`bash scripts/build-sideload.sh`. The unsigned IPA is written to `build/sideload/Sayboard.ipa`.
+
+### Build directly on a Mac
+
 To get started, you need a [Mac](https://www.apple.com/mac/), [Xcode](https://developer.apple.com/xcode/) 16.4+ (iOS 17.0+ deployment target), and a (free) [Apple Developer Account](https://developer.apple.com/programs/).
 
 ### 1. Install Dependencies

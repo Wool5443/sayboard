@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+"""Check the device app, keyboard, and linked dynamic frameworks before signing."""
+
+import plistlib
+import struct
+import sys
+import zipfile
+
+
+def verify(path):
+    with zipfile.ZipFile(path) as ipa:
+        app = "Payload/Sayboard.app/"
+        keyboard = app + "PlugIns/SayboardKeyboard.appex/"
+        names = set(ipa.namelist())
+        for root, expected_id in ((app, "app.sayboard"), (keyboard, "app.sayboard.keyboard")):
+            info = plistlib.loads(ipa.read(root + "Info.plist"))
+            assert info["CFBundleIdentifier"] == expected_id, info["CFBundleIdentifier"]
+            assert float(info["MinimumOSVersion"]) >= 17, info["MinimumOSVersion"]
+            executable = ipa.read(root + info["CFBundleExecutable"])
+            # The build deliberately emits a thin ARM64 Mach-O for physical iPhones.
+            magic, cpu, _, _, count, _, _, _ = struct.unpack_from("<8I", executable)
+            assert magic == 0xFEEDFACF and cpu == 0x0100000C, "Expected thin ARM64 Mach-O"
+            offset = 32
+            for _ in range(count):
+                command, size = struct.unpack_from("<II", executable, offset)
+                assert size >= 8 and offset + size <= len(executable), "Invalid load command"
+                if command in (0xC, 0x80000018, 0x8000001F):
+                    name_offset = struct.unpack_from("<I", executable, offset + 8)[0]
+                    library = executable[offset + name_offset:offset + size].split(b"\0", 1)[0].decode()
+                    if library.startswith("@rpath/") and ".framework/" in library:
+                        relative = library.removeprefix("@rpath/")
+                        assert any(prefix + "Frameworks/" + relative in names
+                                   for prefix in (root, app)), f"Missing framework: {library}"
+                offset += size
+        extension = plistlib.loads(ipa.read(keyboard + "Info.plist"))["NSExtension"]
+        assert extension["NSExtensionPointIdentifier"] == "com.apple.keyboard-service"
+        assert extension["NSExtensionAttributes"]["RequestsOpenAccess"] is True
+    print("IPA verified: ARM64 app, keyboard extension, and linked frameworks present")
+
+
+if __name__ == "__main__":
+    verify(sys.argv[1])

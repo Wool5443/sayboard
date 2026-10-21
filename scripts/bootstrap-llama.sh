@@ -27,7 +27,7 @@ echo "Downloading llama.cpp ${LLAMA_VERSION} XCFramework..."
 TMPFILE=$(mktemp /tmp/llama-xcframework-XXXXXX.zip)
 trap 'rm -f "$TMPFILE"' EXIT
 
-curl -L -o "$TMPFILE" "$XCFRAMEWORK_URL"
+curl --fail --location --retry 3 -o "$TMPFILE" "$XCFRAMEWORK_URL"
 
 echo "Extracting..."
 unzip -q -o "$TMPFILE" -d "$DEST_DIR"

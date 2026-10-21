@@ -1,7 +1,11 @@
 import Foundation
 
 enum AppGroup {
+  #if SAYBOARD_SIDELOAD
+  static let identifier = InstallationIdentity.sideloadAppGroupIdentifier
+  #else
   static let identifier = "group.app.sayboard.shared"
+  #endif
 
   static var containerURL: URL? {
     FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: identifier)

@@ -31,6 +31,8 @@ enum HostApplicationMonitor {
     "com.apple.springboard",
     "app.sayboard",
     "app.sayboard.keyboard",
+    InstallationIdentity.appBundle.bundleIdentifier ?? "app.sayboard",
+    InstallationIdentity.keyboardBundleIdentifier,
   ]
 
   private static let changedSelector = NSSelectorFromString("queue_keyboardChanged:onComplete:")

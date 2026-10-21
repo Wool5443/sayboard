@@ -1,0 +1,53 @@
+name: Personal iPhone build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: personal-iphone-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Check Xcode and install build tools
+        run: |
+          xcodebuild -version
+          brew install xcodegen swiftlint
+      - name: Build and verify unsigned Release IPA
+        run: bash scripts/build-sideload.sh
+      - name: Run existing tests and sideload identity tests
+        run: |
+          set -euo pipefail
+          device_id=$(xcrun simctl list devices available --json | python3 -c '
+          import json, sys
+          devices = json.load(sys.stdin)["devices"]
+          print(next(d["udid"] for group in devices.values() for d in group
+                     if d["name"].startswith("iPhone")))')
+          common=(-project Sayboard.xcodeproj -scheme Sayboard
+            -derivedDataPath build/DerivedData
+            -clonedSourcePackagesDirPath build/SourcePackages
+            -configuration Debug -destination "platform=iOS Simulator,id=$device_id"
+            -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO DEVELOPMENT_TEAM=)
+          xcodebuild "${common[@]}" -resultBundlePath build/sideload/StandardTests.xcresult \
+            test 2>&1 | tee build/sideload/standard-tests.log
+          xcodebuild "${common[@]}" -resultBundlePath build/sideload/SideloadTests.xcresult \
+            'SWIFT_ACTIVE_COMPILATION_CONDITIONS=$(inherited) DEBUG SAYBOARD_SIDELOAD' \
+            -only-testing:SayboardTests/InstallationIdentityTests \
+            test 2>&1 | tee build/sideload/sideload-tests.log
+      - name: Upload IPA and build evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: Sayboard-personal-${{ github.sha }}
+          path: build/sideload/
+          if-no-files-found: warn
+          retention-days: 14
