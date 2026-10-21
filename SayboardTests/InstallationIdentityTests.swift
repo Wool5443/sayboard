@@ -5,7 +5,10 @@ import Testing
 struct InstallationIdentityTests {
   @Test
   func `app and keyboard resolve the same containing app`() {
-    let appURL = URL(fileURLWithPath: "/private/var/containers/Bundle/Application/example/Sayboard.app")
+    let appURL = URL(
+      fileURLWithPath: "/private/var/containers/Bundle/Application/example/Sayboard.app",
+      isDirectory: true,
+    )
     let keyboardURL = appURL.appendingPathComponent("PlugIns/SayboardKeyboard.appex")
     #expect(InstallationIdentity.appBundleURL(for: appURL) == appURL)
     #expect(InstallationIdentity.appBundleURL(for: keyboardURL) == appURL)

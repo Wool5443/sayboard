@@ -37,12 +37,14 @@ jobs:
             -clonedSourcePackagesDirPath build/SourcePackages
             -configuration Debug -destination "platform=iOS Simulator,id=$device_id"
             -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO DEVELOPMENT_TEAM=)
+          standard_result=0
           xcodebuild "${common[@]}" -resultBundlePath build/sideload/StandardTests.xcresult \
-            test 2>&1 | tee build/sideload/standard-tests.log
+            test 2>&1 | tee build/sideload/standard-tests.log || standard_result=$?
           xcodebuild "${common[@]}" -resultBundlePath build/sideload/SideloadTests.xcresult \
             'SWIFT_ACTIVE_COMPILATION_CONDITIONS=$(inherited) DEBUG SAYBOARD_SIDELOAD' \
             -only-testing:SayboardTests/InstallationIdentityTests \
             test 2>&1 | tee build/sideload/sideload-tests.log
+          exit "$standard_result"
       - name: Upload IPA and build evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
